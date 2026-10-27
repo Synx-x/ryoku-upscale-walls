@@ -2,8 +2,8 @@
   "id": "upscale-walls",
   "name": "Upscale Walls",
   "version": "0.1.0",
-  "author": "Siyanda \u003cSiyanda@arksoft.co.za\u003e",
-  "description": "Upscale Walls is a Ryoku shell plugin.",
+  "author": "Synx-x <Synx-x@users.noreply.github.com>",
+  "description": "Upscale small wallpapers on the GPU as you pick them, and keep the original untouched.",
   "license": "MIT",
   "official": false,
   "hosts": [
@@ -15,9 +15,9 @@
     "panel": "content/Panel.qml"
   },
   "panel": {
-    "width": 320
+    "width": 340
   },
-  "files": [],
+  "files": ["bin/upscale_walls.py"],
   "capabilities": {
     "densities": [
       "glyph",
@@ -29,16 +29,54 @@
     "label": "Upscale Walls"
   },
   "dependencies": {
-    "commands": []
+    "commands": ["python3", "magick", "ryogami", "waifu2x-ncnn-vulkan", "realesrgan-ncnn-vulkan"]
   },
   "metadata": {
     "settings": [
       {
-        "key": "showCount",
+        "key": "enabled",
         "type": "toggle",
-        "label": "Show the tick count",
+        "label": "Upscale wallpapers when picked",
         "group": "Upscale Walls",
         "default": true
+      },
+      {
+        "key": "mode",
+        "type": "choice",
+        "label": "Upscaler",
+        "group": "Upscale Walls",
+        "default": "auto",
+        "options": [
+          { "value": "auto", "label": "Auto (Real-ESRGAN if installed)" },
+          { "value": "waifu2x", "label": "waifu2x (keeps grain, art)" },
+          { "value": "realesrgan", "label": "Real-ESRGAN (cleans JPEG damage)" }
+        ]
+      },
+      {
+        "key": "targetWidth",
+        "type": "int",
+        "label": "Skip images at least this wide (px)",
+        "group": "Upscale Walls",
+        "default": 3840,
+        "min": 1920,
+        "max": 7680
+      },
+      {
+        "key": "cacheMB",
+        "type": "int",
+        "label": "Cache size limit (MB)",
+        "group": "Upscale Walls",
+        "default": 2000,
+        "min": 200,
+        "max": 20000
+      },
+      {
+        "key": "gpu",
+        "type": "text",
+        "label": "GPU index (blank = auto)",
+        "group": "Upscale Walls",
+        "default": "",
+        "placeholder": "auto"
       }
     ]
   }

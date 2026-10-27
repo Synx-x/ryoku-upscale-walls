@@ -2,11 +2,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Ryoku.PluginKit.Singletons
 
-// content/Widget.qml is the one view every host mounts (on the bar, this is the
-// glyph). It reads live state from the service through pluginApi.mainInstance.
-// The sidebar host sets open, reveal, tabActive, width, s and pluginApi; other
-// hosts set active, density and widthBudget as well. Read host values, never
-// assign them.
+// Glyph on the bar. Dim when idle, accent while a wallpaper is being upscaled
+// or after a successful upscale, red tint on error. Click opens the panel.
 Item {
     id: root
 
@@ -22,7 +19,8 @@ Item {
     signal requestClose()
 
     readonly property var service: pluginApi ? pluginApi.mainInstance : null
-    readonly property int count: service ? service.count : 0
+    readonly property string state: service ? service.state : "idle"
+    readonly property bool enabled: pluginApi ? (pluginApi.pluginSettings.enabled ?? true) : true
 
     implicitWidth: row.implicitWidth
     implicitHeight: Math.max(row.implicitHeight, 18 * root.s)
@@ -32,23 +30,31 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 6 * root.s
 
-        // The plugin's mark. Tint it with the themed accent so it follows the
-        // active palette (Theme resolves colour from the system scheme).
         Text {
+            id: mark
             anchors.verticalCenter: parent.verticalCenter
-            text: "\u25C6"
-            color: (root.active || root.open) ? Theme.accent : Theme.dim
+            text: "⬆"
             font.family: Theme.mono
             font.pixelSize: 13 * root.s
+            color: !root.enabled ? Theme.border2
+                 : root.state === "error" ? Theme.vermBurn
+                 : (root.state === "working" || root.state === "done" || root.open) ? Theme.accent
+                 : Theme.dim
+            SequentialAnimation on opacity {
+                running: root.service ? root.service.working : false
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.35; duration: 600 }
+                NumberAnimation { to: 1.0; duration: 600 }
+            }
         }
 
-        // The label beside the mark, elided to the width the host allows.
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: root.count
+            visible: root.state === "working" || root.state === "done"
+            text: root.state === "working" ? "upscaling" : (root.service ? root.service.toSize : "")
             color: Theme.bright
             font.family: Theme.font
-            font.pixelSize: 13 * root.s
+            font.pixelSize: 12 * root.s
             elide: Text.ElideRight
             width: root.widthBudget > 0 ? Math.min(implicitWidth, root.widthBudget) : implicitWidth
         }

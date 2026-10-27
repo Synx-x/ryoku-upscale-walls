@@ -1,56 +1,67 @@
 # Upscale Walls
 
-A Ryoku shell plugin (`upscale-walls`) scaffolded for the `topbarGlyph` host. The working
-demo is a counter that ticks once a second; edit it into your own plugin.
+Upscales a small wallpaper on the GPU when you pick it, then applies the larger copy. The original file is never modified.
+
+## Before and after
+
+Each image is one 4K screen view split down the middle into two halves. The left half is the original drawn by a plain resize. The right half is the plugin's output. Each half shows its resolution underneath, and that number is the file's real size.
+
+![Clouds, 980 x 551 original against the 3840 px upscale](assets/before-after-clouds.png)
+
+![Ship, 1170 x 622 original against the 3840 px upscale](assets/before-after-ship.png)
+
+![Landscape, 1200 x 783 original against the 3840 px upscale](assets/before-after-wasteland.png)
+
+Real-ESRGAN also adds faint vertical streaks on smooth skies, visible at the right edge of the ship image. It smooths canvas grain too. Switch to waifu2x for painted work like that.
 
 ## What it does
 
-- **Service** (`service/Main.qml`): the logic, no UI. Holds the live state the
-  view reads through `pluginApi.mainInstance`.
-- **Widget** (`content/Widget.qml`): the one view every host mounts.
-- **Panel** (`content/Panel.qml`): present only in a `--bar` scaffold; the bar
-  opens it beneath the glyph.
+1. Every 2.5 seconds the service runs `bin/upscale_walls.py tick`.
+2. The worker reads the current wallpaper from `~/.local/state/ryoku/stage-walls.json`.
+3. A still image narrower than the target width (default 3840 px) goes through an upscaler. Anything else is skipped.
+4. The result lands in the plugin cache and is applied with `ryogami wallpaper set`.
+5. The same file with the same settings is served from the cache in about 0.1 s.
 
-Ryoku ships four hosts: `topbarGlyph`, `desktopWidget`, `framePopout`, and
-`sidebarCard`. A sidebar card still uses `content/Widget.qml` plus
-`service/Main.qml`; it does not have a separate sidebar entry point. Its root
-`Item` exposes `s`, `open`, `reveal`, `tabActive`, `pluginApi`, and
-`requestClose()`. Ryoku owns its `width`, and the item reports only its
-`implicitHeight`.
+The bar glyph shows the state. The panel shows the last result, with **Show original** and **Upscale again** buttons. Nothing changes the wallpaper until a pick or a click.
 
-## What it reads and writes
+## Upscalers
 
-The demo reads nothing off the machine and writes nothing. When you add real
-behaviour, keep to the rules in `AGENTS.md`: read settings through
-`pluginApi.pluginSettings` behind a default, write them only through
-`pluginApi.saveSetting(key, value)`, and write files only under
-`pluginApi.stateDir`. Every external command belongs in `bin/` or in
-`dependencies.commands`; every host you contact belongs in
-`capabilities.network`; a privileged action runs only through `pkexec` listed in
-`capabilities.privileged`.
+| Setting | Engine | Use it for |
+|---|---|---|
+| Auto | Real-ESRGAN when installed, else waifu2x | Default |
+| waifu2x | `waifu2x-ncnn-vulkan`, cunet model | Painted art, grain you want to keep |
+| Real-ESRGAN | `realesrgan-ncnn-vulkan`, x4plus model | Blocky or noisy JPEGs |
+
+Measured on an RTX 3050 Laptop (4 GB): about 1 GB VRAM per job, about 3 s per input megapixel at 2x. One job runs at a time. The engine picks the fastest Vulkan device on its own, which is the NVIDIA card here. Set a GPU index in settings to override.
+
+## Install the engines
+
+This plugin ships no binaries (rule R10).
+
+- waifu2x: `sudo pacman -S waifu2x-ncnn-vulkan`
+- Real-ESRGAN: not in the official repos. Build `realesrgan-ncnn-vulkan-git` from the AUR, then place the binary on `PATH` or in `~/.local/bin`. Place its `realesrgan-x4plus.param` and `.bin` files in `~/.local/share/realesrgan-ncnn-vulkan/models/`. The AUR PKGBUILD needed a CMake patch for the current glslang layout.
+
+Without Real-ESRGAN the plugin falls back to waifu2x.
+
+## What runs, reads, writes
+
+| | |
+|---|---|
+| Runs | `python3`, `magick` (read image size, resize), `waifu2x-ncnn-vulkan`, `realesrgan-ncnn-vulkan`, `ryogami wallpaper set <path>` |
+| Reads | `~/.local/state/ryoku/stage-walls.json`, the wallpaper image |
+| Writes | `$XDG_STATE_HOME/ryoku/plugins/upscale-walls/` (status, handled marker, lock), `$XDG_CACHE_HOME/ryoku/plugins/upscale-walls/` (upscaled PNGs, pruned to the cache limit) |
+| Network | None |
+| Privileged | None |
+
+Every external call uses an argv list, with no shell string.
+
+## Limits
+
+- The original shows for a few seconds before the upscaled copy replaces it.
+- After **Show original**, picking the same file again is invisible to the plugin because Ryogami does not rewrite its state. Use **Upscale again**, or pick a different wallpaper first.
+- Animated, video and Wallpaper Engine wallpapers are skipped.
+- Real-ESRGAN smooths painted brushwork and canvas grain. Switch to waifu2x for those.
 
 ## Settings
 
-| key       | type   | default | description         |
-| --------- | ------ | ------- | ------------------- |
-| showCount | toggle | true    | Show the tick count |
-
-## Preview
-
-Capture a real screenshot of the widget and save it as
-`assets/preview-widget.png`, then list it under `files` in `manifest.json`. The
-store shows it in the catalogue.
-
-## Build, check, install
-
-```
-ryoku plugin validate .
-ryoku plugin add . --yes
-```
-
-Enable and place it under **Ryoku Settings > Add-ons**. A bar plugin can instead
-use `ryoku plugin add . --bar --yes` to enable it on the current bar immediately.
-
-## Author
-
-Siyanda <Siyanda@arksoft.co.za>: this plugin is community-made (`official` is false).
+Under QS Bar Settings > Community: enable, upscaler, skip width, cache limit, GPU index.
