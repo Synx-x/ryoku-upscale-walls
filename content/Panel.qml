@@ -53,6 +53,7 @@ Item {
         if (root.working) return "Upscaling " + Math.round(root.service.progress * 100) + "%";
         if (root.canFlip) return root.pair.kind === "upscaled" ? "Showing the upscaled copy" : "Showing the original";
         if (root.state === "error") return "Failed";
+        if (root.state === "ready") return "Ready, not applied";
         return "Waiting for the next wallpaper pick";
     }
 
@@ -61,6 +62,7 @@ Item {
         if (!root.enabled) return "Turn it on in QS Bar Settings > Community.";
         if (root.working) return "It applies when ready, unless you pick another wallpaper first.";
         if (root.state === "error") return root.service.message;
+        if (root.state === "ready") return root.fileName(root.service.src) + " finished after you picked another wallpaper.";
         if (root.canFlip) return "Click the other copy, or the button, to flip.";
         return "";
     }

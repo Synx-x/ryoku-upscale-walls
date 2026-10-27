@@ -1,7 +1,7 @@
 {
   "id": "upscale-walls",
   "name": "Upscale Walls",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "author": "Synx-x <Synx-x@users.noreply.github.com>",
   "description": "Upscale small wallpapers on the GPU as you pick them, and keep the original untouched.",
   "license": "MIT",

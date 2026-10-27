@@ -307,6 +307,7 @@ def tick(settings):
     handled = read_json(HANDLED_FILE, {})
     if handled.get("path") == current and handled.get("stamp") == wall_stamp():
         return out({"state": "idle"})
+    previous = handled
     mark_handled(current)
 
     if under(current, CACHE_DIR):
@@ -342,6 +343,9 @@ def tick(settings):
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
+            # Another upscale holds the engine. Undo the mark so the next tick
+            # retries this pick once the engine is free.
+            write_json(HANDLED_FILE, previous)
             return out({"state": "busy"})
         started = time.time()
         base = {"state": "working", "src": current, "engine": name, "started": started,

@@ -45,6 +45,14 @@ Item {
     // an original and an upscaled copy to flip between.
     readonly property bool showGlyph: svc.working || svc.canFlip || (svc.state === "error" && svc.errorRecent)
 
+    // Close the card when the orb hides, so it never lingers with nothing to show.
+    onShowGlyphChanged: {
+        if (svc.showGlyph) return;
+        svc.widgetHovered = false;
+        svc.panelHovered = false;
+        if (svc.pluginApi && svc.pluginApi.panelOpen) svc.pluginApi.closePanel();
+    }
+
     readonly property real elapsed: svc.working && svc.startedAt > 0 ? Math.max(0, svc.nowMs / 1000 - svc.startedAt) : svc.seconds
     readonly property real eta: svc.working && svc.progress > 0.05 ? svc.elapsed * (1 - svc.progress) / svc.progress : -1
 

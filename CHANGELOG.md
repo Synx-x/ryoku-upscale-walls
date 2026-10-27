@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.6
+
+- Fix: a wallpaper picked while another upscale was running could be skipped for good. A pick that finds the engine busy is now retried on the next tick.
+- Fix: the hover card closes when the orb hides, and says "Ready, not applied" instead of the idle line.
+
 ## 0.2.5
 
 - Fix: the orb and card no longer flicker to "Waiting for the next wallpaper pick" during an upscale. A bare idle result from a second bar's service no longer clears the working state.
