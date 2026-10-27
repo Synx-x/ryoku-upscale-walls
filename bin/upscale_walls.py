@@ -363,6 +363,7 @@ def tick(settings):
                 pass
             notify("Upscale failed", os.path.basename(current))
             return record({"state": "error", "src": current, "engine": name, "message": err or "engine failed"})
+        write_status(dict(base, progress=1.0, phase="finishing"))
         os.replace(dst + ".part.png", dst)
         up = image_size(dst)
         if up and up[0] > target * 1.05:

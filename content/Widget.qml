@@ -3,8 +3,8 @@ import QtQuick
 import Ryoku.PluginKit.Singletons
 
 // An orb beside the clock. Filled means the upscaled copy is showing, hollow
-// means the original. While an upscale runs it pulses, an orbiting spark turns
-// and a ring fills with the progress. Hover opens the card, click flips.
+// means the original. While an upscale runs a spark orbits and a ring fills.
+// Past 95 percent the orb pulses until the result lands. Hover opens the card.
 Item {
     id: root
 
@@ -24,6 +24,7 @@ Item {
     readonly property bool enabled: pluginApi ? (pluginApi.pluginSettings.enabled ?? true) : true
     readonly property bool shown: root.enabled && (root.service ? root.service.showGlyph : false)
     readonly property bool working: root.state === "working"
+    readonly property bool finishing: root.working && (root.progress >= 0.95 || (root.service ? root.service.phase === "finishing" : false))
     readonly property bool showingOriginal: root.service && root.service.pair ? root.service.pair.kind === "original" : false
     readonly property bool failed: root.state === "error" && !root.working
     readonly property real progress: service ? service.progress : 0
@@ -45,7 +46,7 @@ Item {
             height: root.orb
             anchors.verticalCenter: parent.verticalCenter
 
-            // Soft halo that breathes while working and rests when idle.
+            // Soft halo. It pulses only while the last percent finishes.
             Rectangle {
                 id: halo
                 anchors.centerIn: parent
@@ -55,10 +56,12 @@ Item {
                 color: root.tint
                 opacity: root.working ? 0.28 : 0.12
                 SequentialAnimation on scale {
-                    running: root.working
+                    id: haloPulse
+                    running: root.finishing
                     loops: Animation.Infinite
-                    NumberAnimation { to: 1.25; duration: 900; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.85; duration: 900; easing.type: Easing.InOutSine }
+                    onRunningChanged: if (!running) halo.scale = 1
+                    NumberAnimation { to: 1.35; duration: 700; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.85; duration: 700; easing.type: Easing.InOutSine }
                 }
             }
 
@@ -100,17 +103,18 @@ Item {
                 border.color: root.tint
                 Behavior on color { ColorAnimation { duration: 220 } }
                 SequentialAnimation on opacity {
-                    running: root.working
+                    running: root.finishing
                     loops: Animation.Infinite
-                    NumberAnimation { to: 0.55; duration: 700 }
+                    onRunningChanged: if (!running) core.opacity = 1
+                    NumberAnimation { to: 0.5; duration: 700 }
                     NumberAnimation { to: 1.0; duration: 700 }
                 }
             }
 
-            // A small spark orbiting the core while working.
+            // A small spark orbiting the core until the pulse takes over.
             Item {
                 anchors.fill: parent
-                visible: root.working
+                visible: root.working && !root.finishing
                 RotationAnimator on rotation {
                     running: root.working
                     from: 0
@@ -132,8 +136,7 @@ Item {
         Text {
             anchors.verticalCenter: parent.verticalCenter
             visible: text.length > 0
-            text: root.working ? Math.round(root.progress * 100) + "%"
-                : root.failed ? "failed" : ""
+            text: root.failed ? "failed" : ""
             color: Theme.bright
             font.family: Theme.font
             font.pixelSize: 12 * root.s

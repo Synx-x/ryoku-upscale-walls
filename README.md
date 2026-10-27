@@ -22,7 +22,7 @@ Real-ESRGAN also adds faint vertical streaks on smooth skies, visible at the rig
 4. The result lands in the plugin cache and is applied with `ryogami wallpaper set`.
 5. The same file with the same settings is served from the cache in about 0.1 s.
 
-The bar shows an animated orb. While an upscale runs it pulses, an orbiting spark turns, and a ring fills with the progress, with the percentage beside it. Hover it for a details card that previews the source image, the engine, sizes, time elapsed and time remaining. A desktop notification marks the start and the end.
+The bar shows an animated orb. While an upscale runs, a spark orbits it and a ring fills with the progress. Past 95 percent the orb pulses until the result lands, because the last tile and the final resize can take several seconds. Hover it for a details card that previews the source image, the engine, sizes, time elapsed and time remaining. A desktop notification marks the start and the end.
 
 Once the upscale finishes, the orb stays for as long as the current wallpaper has an original and an upscaled copy. A filled orb means the upscaled copy is showing and a hollow ring means the original. Click the orb, either preview in the card, or the card's button to flip between them instantly from the cache. Picking an unrelated wallpaper hides the orb.
 

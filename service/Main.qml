@@ -22,6 +22,7 @@ Item {
     property real seconds: 0
     property bool cached: false
     property real progress: 0
+    property string phase: ""
     property real startedAt: 0
     property int target: 0
     property string thumb: ""
@@ -30,6 +31,7 @@ Item {
     property bool errorRecent: false
     property real loadedAt: Date.now() / 1000
     property real lastAt: 0
+    property int pairMisses: 0
 
     // Hover opens the details card. Click flips original and upscaled.
     property bool widgetHovered: false
@@ -69,11 +71,23 @@ Item {
     function flip() { svc.run("flip"); }
     function redo() { svc.run("redo"); }
 
+    // Ryogami rewrites its state file on a wallpaper change, so one poll can
+    // read it half written. Hide the orb only after three polls agree.
+    function setPair(p) {
+        const next = p || ({ flip: false, kind: "other" });
+        if (!next.flip && svc.canFlip) {
+            svc.pairMisses += 1;
+            if (svc.pairMisses < 3) return;
+        }
+        svc.pairMisses = 0;
+        svc.pair = next;
+    }
+
     // Take the shared status. A working status counts only while it is fresh,
     // and a finished one only if it happened after this copy loaded.
     function syncShared(r) {
         const now = Date.now() / 1000;
-        svc.pair = r.pair || ({ flip: false, kind: "other" });
+        svc.setPair(r.pair);
         if (r.state === "working") {
             if (r.at && now - r.at < 15) svc.apply(r);
             else if (svc.state === "working") svc.state = "idle";
@@ -87,7 +101,7 @@ Item {
 
     function apply(result) {
         if (result.state === "busy") return;
-        svc.pair = result.pair || ({ flip: false, kind: "other" });
+        svc.setPair(result.pair);
         // A tick with nothing to do returns a bare idle result. Keep the last
         // real result on screen instead of blanking it.
         if (result.state === "idle" && !result.src) {
@@ -107,6 +121,7 @@ Item {
         svc.thumb = result.thumb || (svc.state === "working" ? svc.thumb : "");
         if (svc.state === "working") {
             svc.progress = result.progress || 0;
+            svc.phase = result.phase || "";
             svc.startedAt = result.started || svc.startedAt;
             svc.errorRecent = false;
             errorTimer.stop();

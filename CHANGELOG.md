@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.4
+
+- Fix: the orb now pulses from 95 percent, and during the final resize. The engine often stalls at about 97 percent while its last tile runs, so a 99 percent rule never fired.
+
+## 0.2.3
+
+- Fix: the orb no longer blinks out for a moment when an upscale finishes. It hides only after three status reads agree that no flip is available.
+
+## 0.2.2
+
+- The orb no longer shows a percentage. The ring and the orbiting spark show progress, and the orb pulses once it reaches 99 percent until the result lands.
+
 ## 0.2.1
 
 - Fix: the orb now shows on every monitor's bar during an upscale. Each bar runs its own copy of the service, and only the one that started the job knew it was working. All copies now read the shared status file.
