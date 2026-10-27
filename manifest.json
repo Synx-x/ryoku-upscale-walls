@@ -1,0 +1,45 @@
+{
+  "id": "upscale-walls",
+  "name": "Upscale Walls",
+  "version": "0.1.0",
+  "author": "Siyanda \u003cSiyanda@arksoft.co.za\u003e",
+  "description": "Upscale Walls is a Ryoku shell plugin.",
+  "license": "MIT",
+  "official": false,
+  "hosts": [
+    "topbarGlyph"
+  ],
+  "entryPoints": {
+    "main": "service/Main.qml",
+    "content": "content/Widget.qml",
+    "panel": "content/Panel.qml"
+  },
+  "panel": {
+    "width": 320
+  },
+  "files": [],
+  "capabilities": {
+    "densities": [
+      "glyph",
+      "compact"
+    ]
+  },
+  "defaults": {
+    "host": "topbarGlyph",
+    "label": "Upscale Walls"
+  },
+  "dependencies": {
+    "commands": []
+  },
+  "metadata": {
+    "settings": [
+      {
+        "key": "showCount",
+        "type": "toggle",
+        "label": "Show the tick count",
+        "group": "Upscale Walls",
+        "default": true
+      }
+    ]
+  }
+}
