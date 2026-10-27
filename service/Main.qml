@@ -3,9 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Io
 
-// Polls the worker every few seconds. The worker reads Ryoku's current
-// wallpaper, upscales a small one into the cache, and applies the result.
-// While it runs, a second light process reads its progress file each second.
+// Polls the worker every few seconds. While one upscale runs, a second light
+// process reads its progress file each second.
 Item {
     id: svc
 
@@ -25,22 +24,22 @@ Item {
     property real progress: 0
     property real startedAt: 0
     property int target: 0
+    property string thumb: ""
+    property var pair: ({ flip: false, kind: "other" })
     property real nowMs: Date.now()
+    property bool errorRecent: false
 
-    // Hover and pin, so the details panel opens when the pointer rests on the glyph.
+    // Hover opens the details card. Click flips original and upscaled.
     property bool widgetHovered: false
     property bool panelHovered: false
     property bool panelHoverEstablished: false
-    property bool pinned: false
 
     readonly property bool working: svc.state === "working"
+    readonly property bool canFlip: !!(svc.pair && svc.pair.flip)
 
-    // The glyph shows only on demand: while working, then for a while after a
-    // result so it is still there when you look up.
-    property bool recent: false
-    readonly property bool showGlyph: svc.working
-        || (svc.recent && (svc.state === "done" || svc.state === "ready" || svc.state === "error" || svc.state === "reverted"))
-    readonly property int lingerSeconds: Math.max(10, Math.min(3600, (svc.settings && svc.settings.lingerSeconds) ? svc.settings.lingerSeconds : 180))
+    // The orb shows while an upscale runs, and while the current wallpaper has
+    // an original and an upscaled copy to flip between.
+    readonly property bool showGlyph: svc.working || svc.canFlip || (svc.state === "error" && svc.errorRecent)
 
     readonly property real elapsed: svc.working && svc.startedAt > 0 ? Math.max(0, svc.nowMs / 1000 - svc.startedAt) : svc.seconds
     readonly property real eta: svc.working && svc.progress > 0.05 ? svc.elapsed * (1 - svc.progress) / svc.progress : -1
@@ -65,12 +64,13 @@ Item {
     }
 
     function tick() { svc.run("tick"); }
-    function revert() { svc.run("revert"); }
+    function flip() { svc.run("flip"); }
     function redo() { svc.run("redo"); }
 
     function apply(result) {
-        // A tick that has nothing to do returns a bare idle result. Keep the
-        // last real result on screen instead of blanking it.
+        svc.pair = result.pair || ({ flip: false, kind: "other" });
+        // A tick with nothing to do returns a bare idle result. Keep the last
+        // real result on screen instead of blanking it.
         if (result.state === "idle" && !result.src) {
             if (svc.state === "working") svc.state = "idle";
             return;
@@ -85,15 +85,17 @@ Item {
         svc.seconds = result.seconds || 0;
         svc.cached = !!result.cached;
         svc.target = result.target || svc.target;
+        svc.thumb = result.thumb || (svc.state === "working" ? svc.thumb : "");
         if (svc.state === "working") {
             svc.progress = result.progress || 0;
             svc.startedAt = result.started || svc.startedAt;
-            svc.recent = false;
-            linger.stop();
-        } else if (svc.state === "done" || svc.state === "ready" || svc.state === "error" || svc.state === "reverted") {
-            svc.progress = svc.state === "done" || svc.state === "ready" ? 1 : svc.progress;
-            svc.recent = true;
-            linger.restart();
+            svc.errorRecent = false;
+            errorTimer.stop();
+        } else if (svc.state === "error") {
+            svc.errorRecent = true;
+            errorTimer.restart();
+        } else if (svc.state === "done" || svc.state === "ready") {
+            svc.progress = 1;
         }
     }
 
@@ -107,29 +109,16 @@ Item {
             if (hovered)
                 svc.panelHoverEstablished = true;
         }
-        const isActive = svc.widgetHovered || svc.panelHovered || svc.pinned;
-        if (isActive) {
+        if (svc.widgetHovered || svc.panelHovered) {
             closeTimer.stop();
             if (svc.pluginApi && !svc.pluginApi.panelOpen)
                 svc.pluginApi.openPanel();
         } else if (svc.panelHoverEstablished) {
             closeTimer.restart();
         } else {
-            // The host panel is a full-screen layer. Opening it can drop glyph
-            // hover before the pointer reaches the card, so hold it open
-            // through that handoff.
+            // Opening the host panel can drop glyph hover before the pointer
+            // reaches the card, so hold it open through that handoff.
             closeTimer.stop();
-        }
-    }
-
-    function togglePinned() {
-        svc.pinned = !svc.pinned;
-        if (svc.pinned) {
-            closeTimer.stop();
-            if (svc.pluginApi && !svc.pluginApi.panelOpen)
-                svc.pluginApi.openPanel();
-        } else if (!svc.widgetHovered && !svc.panelHovered) {
-            closeTimer.restart();
         }
     }
 
@@ -178,16 +167,16 @@ Item {
     }
 
     Timer {
-        id: linger
-        interval: svc.lingerSeconds * 1000
-        onTriggered: svc.recent = false
+        id: errorTimer
+        interval: 30000
+        onTriggered: svc.errorRecent = false
     }
 
     Timer {
         id: closeTimer
         interval: 350
         onTriggered: {
-            if (!svc.pinned && !svc.widgetHovered && !svc.panelHovered && svc.pluginApi && svc.pluginApi.panelOpen)
+            if (!svc.widgetHovered && !svc.panelHovered && svc.pluginApi && svc.pluginApi.panelOpen)
                 svc.pluginApi.closePanel();
         }
     }

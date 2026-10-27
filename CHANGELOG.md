@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- The bar glyph is now an animated orb. It pulses with a progress ring and an orbiting spark while an upscale runs.
+- The orb stays while the current wallpaper has an original and an upscaled copy. Filled means upscaled, hollow means original. Click it to flip between them instantly.
+- The hover card previews the source image while processing, then shows the original and upscaled copies side by side.
+- Removed the glyph linger setting. The orb now follows whether a flip is available.
+
 ## 0.1.3
 
 - Real progress: the bar glyph shows the percentage with a progress strip while an upscale runs.

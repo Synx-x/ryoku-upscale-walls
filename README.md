@@ -22,7 +22,11 @@ Real-ESRGAN also adds faint vertical streaks on smooth skies, visible at the rig
 4. The result lands in the plugin cache and is applied with `ryogami wallpaper set`.
 5. The same file with the same settings is served from the cache in about 0.1 s.
 
-The bar glyph appears only on demand. While an upscale runs it shows the percentage and a thin progress strip. It then stays for a set time after the result so you can still see it. Hover it for a details card with the file, engine, size, elapsed time and time remaining. Click it to pin the card. Place it next to the clock with `ryoku-shell bar move upscale-walls --section center`. A desktop notification marks the start and the end. The panel shows the last result, with **Show original** and **Upscale again** buttons.
+The bar shows an animated orb. While an upscale runs it pulses, an orbiting spark turns, and a ring fills with the progress, with the percentage beside it. Hover it for a details card that previews the source image, the engine, sizes, time elapsed and time remaining. A desktop notification marks the start and the end.
+
+Once the upscale finishes, the orb stays for as long as the current wallpaper has an original and an upscaled copy. A filled orb means the upscaled copy is showing and a hollow ring means the original. Click the orb, either preview in the card, or the card's button to flip between them instantly from the cache. Picking an unrelated wallpaper hides the orb.
+
+Place the orb next to the clock with `ryoku-shell bar move upscale-walls --section center`.
 
 If you pick another wallpaper while one is processing, the finished copy is cached and marked ready but not applied, so it never replaces your newer pick.
 
@@ -60,10 +64,10 @@ Every external call uses an argv list, with no shell string.
 ## Limits
 
 - The original shows for a few seconds before the upscaled copy replaces it.
-- After **Show original**, picking the same file again is invisible to the plugin because Ryogami does not rewrite its state. Use **Upscale again**, or pick a different wallpaper first.
+- Picking the same file again is invisible to the plugin because Ryogami does not rewrite its state. Flip with the orb instead.
 - Animated, video and Wallpaper Engine wallpapers are skipped.
 - Real-ESRGAN smooths painted brushwork and canvas grain. Switch to waifu2x for those.
 
 ## Settings
 
-Under QS Bar Settings > Community: enable, upscaler, skip width, glyph linger time, cache limit, GPU index.
+Under QS Bar Settings > Community: enable, upscaler, skip width, cache limit, GPU index.

@@ -3,7 +3,7 @@
 
 tick    Read the current wallpaper from Ryoku's stage state. If it is a small
         raster image, upscale it into the plugin cache and apply the result.
-revert  Re-apply the last source image without upscaling it again.
+flip    Switch between the original and its cached upscaled copy.
 status  Print the last result as JSON.
 
 Every command prints one JSON object on stdout. Writes go only to the plugin
@@ -32,10 +32,18 @@ CACHE_DIR = os.path.join(CACHE_HOME, "ryoku", "plugins", ID)
 STATUS_FILE = os.path.join(STATE_DIR, "status.json")
 HANDLED_FILE = os.path.join(STATE_DIR, "handled.json")
 LOCK_FILE = os.path.join(STATE_DIR, "lock")
+INDEX_FILE = os.path.join(STATE_DIR, "index.json")
+THUMB_DIR = os.path.join(CACHE_DIR, "thumbs")
 ENGINE_TIMEOUT = 600
 
 
 def out(obj):
+    """Print one JSON result. Every result carries `pair`, the original and upscaled copy of the current wallpaper."""
+    if "pair" not in obj:
+        try:
+            obj["pair"] = pair()
+        except Exception:  # noqa: BLE001
+            obj["pair"] = {"flip": False}
     print(json.dumps(obj))
     return 0
 
@@ -147,6 +155,56 @@ def choose_engine(mode):
     if have_re:
         return "realesrgan", re_bin, re_models
     return None, None, None
+
+
+def thumb(path):
+    """A 360 px preview for the hover card, cached by path and mtime."""
+    if not path or not os.path.isfile(path):
+        return ""
+    try:
+        key = hashlib.sha1(("%s|%d" % (path, os.stat(path).st_mtime_ns)).encode()).hexdigest()[:16]
+    except OSError:
+        return ""
+    dst = os.path.join(THUMB_DIR, key + ".jpg")
+    if not os.path.isfile(dst):
+        os.makedirs(THUMB_DIR, exist_ok=True)
+        r = subprocess.run(["magick", path + "[0]", "-auto-orient", "-thumbnail", "360x", "-quality", "80", dst],
+                           capture_output=True, timeout=60)
+        if r.returncode != 0:
+            return ""
+    return dst
+
+
+def load_index():
+    idx = read_json(INDEX_FILE, {})
+    idx.setdefault("by_src", {})
+    idx.setdefault("by_out", {})
+    return idx
+
+
+def remember_pair(src, dst, engine, from_size, to_size):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    idx = load_index()
+    idx["by_src"][src] = {"out": dst, "engine": engine, "from": from_size, "to": to_size}
+    idx["by_out"][dst] = src
+    write_json(INDEX_FILE, idx)
+
+
+def pair():
+    """The original and upscaled copy of the current wallpaper, when both exist."""
+    path = read_json(WALL_STATE, {}).get("current", "") or ""
+    idx = load_index()
+    kind, src, dst = "other", "", ""
+    if path in idx["by_out"] and os.path.isfile(path):
+        kind, src, dst = "upscaled", idx["by_out"][path], path
+    elif path in idx["by_src"] and os.path.isfile(idx["by_src"][path]["out"]):
+        kind, src, dst = "original", path, idx["by_src"][path]["out"]
+    if kind == "other" or not os.path.isfile(src):
+        return {"flip": False, "kind": "other"}
+    entry = idx["by_src"].get(src, {})
+    return {"flip": True, "kind": kind, "src": src, "out": dst, "srcName": os.path.basename(src),
+            "from": entry.get("from", ""), "to": entry.get("to", ""), "engine": entry.get("engine", ""),
+            "srcThumb": thumb(src), "outThumb": thumb(dst)}
 
 
 def run_engine(name, binary, models, src, dst, scale, gpu, on_progress=None):
@@ -287,7 +345,7 @@ def tick(settings):
             return out({"state": "busy"})
         started = time.time()
         base = {"state": "working", "src": current, "engine": name, "started": started,
-                "from": "%dx%d" % size, "target": target, "progress": 0.0}
+                "from": "%dx%d" % size, "target": target, "progress": 0.0, "thumb": thumb(current)}
         write_status(dict(base))
         notify("Upscaling wallpaper", "%s (%d px wide)" % (os.path.basename(current), width))
         last = [0.0]
@@ -313,6 +371,7 @@ def tick(settings):
         prune_cache(settings["cacheMB"])
 
     final = image_size(dst) or (0, 0)
+    remember_pair(current, dst, name, "%dx%d" % size, "%dx%d" % final)
     if read_json(WALL_STATE, {}).get("current") != current:
         notify("Upscale ready, not applied", "%s finished after you picked another wallpaper" % os.path.basename(current))
         return record({"state": "ready", "src": current, "out": dst, "engine": name, "cached": cached,
@@ -328,18 +387,21 @@ def tick(settings):
                    "seconds": round(time.time() - began, 1)})
 
 
-def revert():
-    last = read_json(STATUS_FILE, {})
-    src = last.get("src")
-    if not src or not os.path.isfile(src):
-        return out({"state": "error", "message": "no source to restore"})
+def flip():
+    """Switch between the original and its cached upscaled copy. Instant, no engine run."""
+    info = pair()
+    if not info.get("flip"):
+        return out({"state": "error", "message": "no upscaled copy of this wallpaper"})
+    target = info["out"] if info["kind"] == "original" else info["src"]
     os.makedirs(STATE_DIR, exist_ok=True)
-    ok, err = apply_wallpaper(src)
+    ok, err = apply_wallpaper(target)
     if not ok:
-        return record({"state": "error", "src": src, "message": err or "ryogami set failed"})
-    wait_for_current(src)
-    mark_handled(src)
-    return record({"state": "reverted", "src": src, "message": "original restored"})
+        return record({"state": "error", "src": info["src"], "message": err or "ryogami set failed"})
+    wait_for_current(target)
+    mark_handled(target)
+    showing = "upscaled" if info["kind"] == "original" else "original"
+    return record({"state": "flipped", "src": info["src"], "out": info["out"], "engine": info["engine"],
+                   "from": info["from"], "to": info["to"], "message": "showing the " + showing})
 
 
 def main():
@@ -347,8 +409,8 @@ def main():
     rest = sys.argv[2:]
     if cmd == "tick":
         return tick(settings_from(rest))
-    if cmd == "revert":
-        return revert()
+    if cmd == "flip":
+        return flip()
     if cmd == "redo":
         try:
             os.remove(HANDLED_FILE)

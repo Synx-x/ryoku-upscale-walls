@@ -1,8 +1,9 @@
 import QtQuick
 import Ryoku.PluginKit.Singletons
 
-// Details card. Opens when the pointer rests on the glyph. Actions run only on
-// a click, and settings live under QS Bar Settings > Community.
+// Details card. Opens when the pointer rests on the orb. While an upscale runs
+// it previews the source image. Afterwards it shows the original and upscaled
+// copies side by side, and clicking the other one flips to it.
 Item {
     id: root
 
@@ -15,55 +16,53 @@ Item {
     readonly property var service: pluginApi ? pluginApi.mainInstance : null
     readonly property string state: service ? service.state : "idle"
     readonly property bool enabled: pluginApi ? (pluginApi.pluginSettings.enabled ?? true) : true
+    readonly property bool working: root.state === "working"
+    readonly property var pair: service && service.pair ? service.pair : ({ flip: false, kind: "other" })
+    readonly property bool canFlip: !!root.pair.flip
 
     function fileName(p) {
         const i = p.lastIndexOf("/");
         return i >= 0 ? p.slice(i + 1) : p;
     }
 
+    function fileUrl(p) {
+        return p ? "file://" + p : "";
+    }
+
     readonly property var rows: {
         const v = root.service;
         if (!v) return [];
         const list = [];
-        if (v.src) list.push(["File", root.fileName(v.src)]);
-        if (v.engine) list.push(["Engine", v.engine === "realesrgan" ? "Real-ESRGAN x4plus" : "waifu2x cunet"]);
-        if (root.state === "working") {
+        if (root.working) {
+            if (v.src) list.push(["File", root.fileName(v.src)]);
+            list.push(["Engine", v.engine === "realesrgan" ? "Real-ESRGAN x4plus" : "waifu2x cunet"]);
             list.push(["Source", v.fromSize + (v.target ? " to about " + v.target + " px wide" : "")]);
             list.push(["Elapsed", v.fmt(v.elapsed)]);
             if (v.eta >= 0) list.push(["Remaining", "about " + v.fmt(v.eta)]);
-        } else if (root.state === "done" || root.state === "ready") {
-            list.push(["Size", v.fromSize + " to " + v.toSize]);
-            list.push(["Took", v.cached ? "cached, instant" : v.fmt(v.seconds)]);
-            if (v.out) list.push(["Saved as", root.fileName(v.out)]);
+        } else if (root.canFlip) {
+            list.push(["File", root.pair.srcName]);
+            list.push(["Engine", root.pair.engine === "realesrgan" ? "Real-ESRGAN x4plus" : "waifu2x cunet"]);
+            list.push(["Size", root.pair.from + " to " + root.pair.to]);
         }
         return list;
     }
 
     readonly property string headline: {
-        const v = root.service;
-        if (!v) return "Starting";
+        if (!root.service) return "Starting";
         if (!root.enabled) return "Off";
-        switch (root.state) {
-        case "working": return "Upscaling " + Math.round(v.progress * 100) + "%";
-        case "done": return "Upscaled and applied";
-        case "ready": return "Ready, not applied";
-        case "reverted": return "Showing the original";
-        case "skipped": return "Skipped";
-        case "error": return "Failed";
-        default: return "Waiting for the next wallpaper pick";
-        }
+        if (root.working) return "Upscaling " + Math.round(root.service.progress * 100) + "%";
+        if (root.canFlip) return root.pair.kind === "upscaled" ? "Showing the upscaled copy" : "Showing the original";
+        if (root.state === "error") return "Failed";
+        return "Waiting for the next wallpaper pick";
     }
 
     readonly property string note: {
-        const v = root.service;
-        if (!v) return "";
+        if (!root.service) return "";
         if (!root.enabled) return "Turn it on in QS Bar Settings > Community.";
-        switch (root.state) {
-        case "working": return "It applies when ready, unless you pick another wallpaper first.";
-        case "ready": return "It finished after you picked another wallpaper. Pick that file again to use the upscaled copy.";
-        case "skipped": case "error": return v.message;
-        default: return "";
-        }
+        if (root.working) return "It applies when ready, unless you pick another wallpaper first.";
+        if (root.state === "error") return root.service.message;
+        if (root.canFlip) return "Click the other copy, or the button, to flip.";
+        return "";
     }
 
     implicitWidth: root.widthBudget
@@ -82,24 +81,88 @@ Item {
 
         Text {
             text: root.headline
-            color: root.state === "error" ? Theme.vermBurn : Theme.bright
+            color: root.state === "error" && !root.working ? Theme.vermBurn : Theme.bright
             font.family: Theme.display
             font.pixelSize: 16 * root.s
         }
 
-        // Progress bar, only while working.
+        // Source preview with a progress bar across its bottom edge, while working.
         Rectangle {
-            visible: root.state === "working"
+            visible: root.working
             width: parent.width
-            height: Math.max(4, 5 * root.s)
-            radius: height / 2
-            color: Theme.border
+            height: width * 9 / 16
+            radius: Theme.radius
+            color: Theme.tileBg
+            clip: true
+            Image {
+                anchors.fill: parent
+                source: root.fileUrl(root.service ? root.service.thumb : "")
+                asynchronous: true
+                fillMode: Image.PreserveAspectCrop
+                sourceSize.width: 360
+            }
             Rectangle {
-                height: parent.height
-                radius: parent.radius
-                width: parent.width * Math.max(0.02, Math.min(1, root.service ? root.service.progress : 0))
-                color: Theme.accent
-                Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: Math.max(4, 5 * root.s)
+                color: Qt.rgba(0, 0, 0, 0.45)
+                Rectangle {
+                    height: parent.height
+                    width: parent.width * Math.max(0.02, Math.min(1, root.service ? root.service.progress : 0))
+                    color: Theme.accent
+                    Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+                }
+            }
+        }
+
+        // Original and upscaled copies side by side. The showing one is outlined.
+        Row {
+            visible: !root.working && root.canFlip
+            spacing: 8 * root.s
+
+            Repeater {
+                model: [
+                    { label: "Original", size: root.pair.from, path: root.pair.srcThumb, active: root.pair.kind === "original" },
+                    { label: "Upscaled", size: root.pair.to, path: root.pair.outThumb, active: root.pair.kind === "upscaled" }
+                ]
+                delegate: Item {
+                    id: card
+                    required property var modelData
+                    width: (col.width - 8 * root.s) / 2
+                    height: width * 9 / 16 + 20 * root.s
+
+                    Rectangle {
+                        width: parent.width
+                        height: width * 9 / 16
+                        radius: Theme.radius
+                        color: Theme.tileBg
+                        clip: true
+                        border.width: card.modelData.active ? Math.max(2, 2 * root.s) : 1
+                        border.color: card.modelData.active ? Theme.accent : Theme.border
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 1
+                            source: root.fileUrl(card.modelData.path)
+                            asynchronous: true
+                            fillMode: Image.PreserveAspectCrop
+                            sourceSize.width: 360
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            enabled: !card.modelData.active
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: if (root.service) root.service.flip()
+                        }
+                    }
+                    Text {
+                        anchors.bottom: parent.bottom
+                        text: card.modelData.label + "  " + card.modelData.size
+                        color: card.modelData.active ? Theme.bright : Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: 11 * root.s
+                    }
+                }
             }
         }
 
@@ -133,7 +196,7 @@ Item {
             width: parent.width
             wrapMode: Text.WordWrap
             text: root.note
-            color: root.state === "error" ? Theme.vermBurn : Theme.dim
+            color: root.state === "error" && !root.working ? Theme.vermBurn : Theme.dim
             font.family: Theme.font
             font.pixelSize: 12 * root.s
         }
@@ -142,28 +205,28 @@ Item {
             spacing: 8 * root.s
 
             Rectangle {
-                visible: root.state === "done"
-                width: showLabel.implicitWidth + 24 * root.s
-                height: showLabel.implicitHeight + 12 * root.s
+                visible: !root.working && root.canFlip
+                width: flipLabel.implicitWidth + 24 * root.s
+                height: flipLabel.implicitHeight + 12 * root.s
                 radius: Theme.radius
-                color: showArea.pressed ? Theme.vermDeep : Theme.accent
+                color: flipArea.pressed ? Theme.vermDeep : Theme.accent
                 Text {
-                    id: showLabel
+                    id: flipLabel
                     anchors.centerIn: parent
-                    text: "SHOW ORIGINAL"
+                    text: root.pair.kind === "upscaled" ? "SHOW ORIGINAL" : "SHOW UPSCALED"
                     color: Theme.cardBot
                     font.family: Theme.font
                     font.pixelSize: 12 * root.s
                 }
                 MouseArea {
-                    id: showArea
+                    id: flipArea
                     anchors.fill: parent
-                    onClicked: if (root.service) root.service.revert()
+                    onClicked: if (root.service) root.service.flip()
                 }
             }
 
             Rectangle {
-                visible: root.state === "reverted" || root.state === "error"
+                visible: !root.working && !root.canFlip && root.state === "error"
                 width: redoLabel.implicitWidth + 24 * root.s
                 height: redoLabel.implicitHeight + 12 * root.s
                 radius: Theme.radius
