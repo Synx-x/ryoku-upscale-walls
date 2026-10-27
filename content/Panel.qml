@@ -35,13 +35,13 @@ Item {
         const list = [];
         if (root.working) {
             if (v.src) list.push(["File", root.fileName(v.src)]);
-            list.push(["Engine", v.engine === "realesrgan" ? "Real-ESRGAN x4plus" : "waifu2x cunet"]);
+            list.push(["Engine", v.engine === "realesrgan" ? "Real-ESRGAN x4plus" : v.engine === "realcugan" ? "Real-CUGAN" : "waifu2x cunet"]);
             list.push(["Source", v.fromSize + (v.target ? " to about " + v.target + " px wide" : "")]);
             list.push(["Elapsed", v.fmt(v.elapsed)]);
             if (v.eta >= 0) list.push(["Remaining", "about " + v.fmt(v.eta)]);
         } else if (root.canFlip) {
             list.push(["File", root.pair.srcName]);
-            list.push(["Engine", root.pair.engine === "realesrgan" ? "Real-ESRGAN x4plus" : "waifu2x cunet"]);
+            list.push(["Engine", root.pair.engine === "realesrgan" ? "Real-ESRGAN x4plus" : root.pair.engine === "realcugan" ? "Real-CUGAN" : "waifu2x cunet"]);
             list.push(["Size", root.pair.from + " to " + root.pair.to]);
         }
         return list;

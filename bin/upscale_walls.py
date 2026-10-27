@@ -71,7 +71,7 @@ def settings_from(argv):
         s = {}
     return {
         "enabled": bool(s.get("enabled", True)),
-        "mode": s.get("mode", "auto") if s.get("mode") in ("auto", "waifu2x", "realesrgan") else "auto",
+        "mode": s.get("mode", "auto") if s.get("mode") in ("auto", "waifu2x", "realesrgan", "realcugan") else "auto",
         "targetWidth": int(s.get("targetWidth", 3840) or 3840),
         "gpu": str(s.get("gpu", "") or "").strip(),
         "cacheMB": int(s.get("cacheMB", 2000) or 2000),
@@ -93,6 +93,14 @@ def realesrgan_models():
     for d in (os.path.join(HOME, ".local", "share", "realesrgan-ncnn-vulkan", "models"),
               "/usr/share/realesrgan-ncnn-vulkan/models"):
         if os.path.isfile(os.path.join(d, "realesrgan-x4plus.param")):
+            return d
+    return None
+
+
+def realcugan_models():
+    for d in (os.path.join(HOME, ".local", "share", "realcugan-ncnn-vulkan", "models-se"),
+              "/usr/share/realcugan-ncnn-vulkan/models-se"):
+        if os.path.isfile(os.path.join(d, "up4x-no-denoise.param")):
             return d
     return None
 
@@ -146,6 +154,11 @@ def choose_engine(mode):
     have_w2 = bool(w2_bin and w2_models)
     if mode == "realesrgan" and have_re:
         return "realesrgan", re_bin, re_models
+    if mode == "realcugan":
+        rc_bin = find_engine("realcugan-ncnn-vulkan", [os.path.join(HOME, ".local", "bin")])
+        rc_models = realcugan_models()
+        if rc_bin and rc_models:
+            return "realcugan", rc_bin, rc_models
     if mode == "waifu2x" and have_w2:
         return "waifu2x", w2_bin, w2_models
     if mode == "auto" and have_re:
@@ -211,6 +224,9 @@ def run_engine(name, binary, models, src, dst, scale, gpu, on_progress=None):
     """Run one engine. Both print a percentage line per tile on stderr, which feeds on_progress."""
     if name == "realesrgan":
         cmd = [binary, "-i", src, "-o", dst, "-n", "realesrgan-x4plus", "-s", "4", "-m", models]
+    elif name == "realcugan":
+        # Real-CUGAN prints no percentages, so the progress ring stays empty while it runs.
+        cmd = [binary, "-i", src, "-o", dst, "-n", "-1", "-s", str(scale), "-m", models]
     else:
         cmd = [binary, "-i", src, "-o", dst, "-n", "1", "-s", str(scale), "-m", models]
     if gpu:

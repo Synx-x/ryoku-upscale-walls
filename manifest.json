@@ -1,7 +1,7 @@
 {
   "id": "upscale-walls",
   "name": "Upscale Walls",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "author": "Synx-x <Synx-x@users.noreply.github.com>",
   "description": "Upscale small wallpapers on the GPU as you pick them, and keep the original untouched.",
   "license": "MIT",
@@ -37,7 +37,8 @@
       "ryogami",
       "waifu2x-ncnn-vulkan",
       "realesrgan-ncnn-vulkan",
-      "notify-send"
+      "notify-send",
+      "realcugan-ncnn-vulkan"
     ]
   },
   "metadata": {
@@ -67,6 +68,10 @@
           {
             "value": "realesrgan",
             "label": "Real-ESRGAN (cleans JPEG damage)"
+          },
+          {
+            "value": "realcugan",
+            "label": "Real-CUGAN (fast, keeps grain)"
           }
         ]
       },

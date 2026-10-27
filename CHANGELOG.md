@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- New upscaler: Real-CUGAN. It keeps canvas grain and runs about twice as fast as Real-ESRGAN on this machine, but flattens fine detail. Pick it under Upscaler. It prints no progress, so the ring stays empty while it runs.
+
 ## 0.2.6
 
 - Fix: a wallpaper picked while another upscale was running could be skipped for good. A pick that finds the engine busy is now retried on the next tick.

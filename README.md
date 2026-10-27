@@ -36,7 +36,8 @@ If you pick another wallpaper while one is processing, the finished copy is cach
 |---|---|---|
 | Auto | Real-ESRGAN when installed, else waifu2x | Default |
 | waifu2x | `waifu2x-ncnn-vulkan`, cunet model | Painted art, grain you want to keep |
-| Real-ESRGAN | `realesrgan-ncnn-vulkan`, x4plus model | Blocky or noisy JPEGs |
+| Real-ESRGAN | `realesrgan-ncnn-vulkan`, x4plus model | Blocky or noisy JPEGs, fine detail like foliage |
+| Real-CUGAN | `realcugan-ncnn-vulkan`, models-se, no denoise | Painted work and grain you want to keep. About twice as fast as Real-ESRGAN, but it flattens fine detail and shows no progress ring |
 
 Measured on an RTX 3050 Laptop (4 GB): about 1 GB VRAM per job, about 3 s per input megapixel at 2x. One job runs at a time. The engine picks the fastest Vulkan device on its own, which is the NVIDIA card here. Set a GPU index in settings to override.
 
@@ -47,7 +48,9 @@ This plugin ships no binaries (rule R10).
 - waifu2x: `sudo pacman -S waifu2x-ncnn-vulkan`
 - Real-ESRGAN: not in the official repos. Build `realesrgan-ncnn-vulkan-git` from the AUR, then place the binary on `PATH` or in `~/.local/bin`. Place its `realesrgan-x4plus.param` and `.bin` files in `~/.local/share/realesrgan-ncnn-vulkan/models/`. The AUR PKGBUILD needed a CMake patch for the current glslang layout.
 
-Without Real-ESRGAN the plugin falls back to waifu2x.
+- Real-CUGAN: build `realcugan-ncnn-vulkan-git` from the AUR. With CMake 4 it needs `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`. Place the binary on `PATH` or in `~/.local/bin`, and its `models-se` folder in `~/.local/share/realcugan-ncnn-vulkan/`.
+
+Without Real-ESRGAN the plugin falls back to waifu2x. Choosing Real-CUGAN without it installed also falls back.
 
 ## What runs, reads, writes
 
