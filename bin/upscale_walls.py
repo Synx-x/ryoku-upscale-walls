@@ -18,6 +18,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 
 ID = "upscale-walls"
@@ -148,15 +149,38 @@ def choose_engine(mode):
     return None, None, None
 
 
-def run_engine(name, binary, models, src, dst, scale, gpu):
+def run_engine(name, binary, models, src, dst, scale, gpu, on_progress=None):
+    """Run one engine. Both print a percentage line per tile on stderr, which feeds on_progress."""
     if name == "realesrgan":
         cmd = [binary, "-i", src, "-o", dst, "-n", "realesrgan-x4plus", "-s", "4", "-m", models]
     else:
         cmd = [binary, "-i", src, "-o", dst, "-n", "1", "-s", str(scale), "-m", models]
     if gpu:
         cmd += ["-g", gpu]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=ENGINE_TIMEOUT)
-    return r.returncode == 0 and os.path.isfile(dst) and os.path.getsize(dst) > 0, r.stderr.strip()[-200:]
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    tail = []
+
+    def reader():
+        for line in proc.stderr:
+            line = line.strip()
+            if line.endswith("%"):
+                try:
+                    if on_progress:
+                        on_progress(min(1.0, max(0.0, float(line[:-1]) / 100)))
+                except ValueError:
+                    pass
+            elif line:
+                tail.append(line)
+
+    t = threading.Thread(target=reader, daemon=True)
+    t.start()
+    try:
+        proc.wait(timeout=ENGINE_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise
+    t.join(2)
+    return proc.returncode == 0 and os.path.isfile(dst) and os.path.getsize(dst) > 0, " ".join(tail)[-200:]
 
 
 def record(status):
@@ -261,9 +285,19 @@ def tick(settings):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             return out({"state": "busy"})
-        write_status({"state": "working", "src": current, "engine": name})
+        started = time.time()
+        base = {"state": "working", "src": current, "engine": name, "started": started,
+                "from": "%dx%d" % size, "target": target, "progress": 0.0}
+        write_status(dict(base))
         notify("Upscaling wallpaper", "%s (%d px wide)" % (os.path.basename(current), width))
-        ok, err = run_engine(name, binary, models, current, dst + ".part.png", scale, settings["gpu"])
+        last = [0.0]
+
+        def on_progress(p):
+            if p - last[0] >= 0.01 or p >= 0.999:
+                last[0] = p
+                write_status(dict(base, progress=round(p, 3)))
+
+        ok, err = run_engine(name, binary, models, current, dst + ".part.png", scale, settings["gpu"], on_progress)
         if not ok:
             try:
                 os.remove(dst + ".part.png")

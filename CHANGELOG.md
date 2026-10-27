@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Real progress: the bar glyph shows the percentage with a progress strip while an upscale runs.
+- Hover the glyph to open a details card with file, engine, size, elapsed time and time remaining. Click to pin it.
+
 ## 0.1.2
 
 - The bar glyph shows only on demand. It appears while an upscale runs and stays for a set time after the result.

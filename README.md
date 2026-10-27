@@ -22,7 +22,7 @@ Real-ESRGAN also adds faint vertical streaks on smooth skies, visible at the rig
 4. The result lands in the plugin cache and is applied with `ryogami wallpaper set`.
 5. The same file with the same settings is served from the cache in about 0.1 s.
 
-The bar glyph appears only on demand. It shows while an upscale runs, then stays for a set time after the result so you can still see it. Place it next to the clock with `ryoku-shell bar move upscale-walls --section center`. A desktop notification marks the start and the end. The panel shows the last result, with **Show original** and **Upscale again** buttons.
+The bar glyph appears only on demand. While an upscale runs it shows the percentage and a thin progress strip. It then stays for a set time after the result so you can still see it. Hover it for a details card with the file, engine, size, elapsed time and time remaining. Click it to pin the card. Place it next to the clock with `ryoku-shell bar move upscale-walls --section center`. A desktop notification marks the start and the end. The panel shows the last result, with **Show original** and **Upscale again** buttons.
 
 If you pick another wallpaper while one is processing, the finished copy is cached and marked ready but not applied, so it never replaces your newer pick.
 
