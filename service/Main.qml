@@ -28,6 +28,8 @@ Item {
     property var pair: ({ flip: false, kind: "other" })
     property real nowMs: Date.now()
     property bool errorRecent: false
+    property real loadedAt: Date.now() / 1000
+    property real lastAt: 0
 
     // Hover opens the details card. Click flips original and upscaled.
     property bool widgetHovered: false
@@ -67,7 +69,24 @@ Item {
     function flip() { svc.run("flip"); }
     function redo() { svc.run("redo"); }
 
+    // Take the shared status. A working status counts only while it is fresh,
+    // and a finished one only if it happened after this copy loaded.
+    function syncShared(r) {
+        const now = Date.now() / 1000;
+        svc.pair = r.pair || ({ flip: false, kind: "other" });
+        if (r.state === "working") {
+            if (r.at && now - r.at < 15) svc.apply(r);
+            else if (svc.state === "working") svc.state = "idle";
+        } else if (r.at && r.at >= svc.loadedAt && r.at !== svc.lastAt) {
+            svc.lastAt = r.at;
+            svc.apply(r);
+        } else if (svc.state === "working") {
+            svc.state = "idle";
+        }
+    }
+
     function apply(result) {
+        if (result.state === "busy") return;
         svc.pair = result.pair || ({ flip: false, kind: "other" });
         // A tick with nothing to do returns a bare idle result. Keep the last
         // real result on screen instead of blanking it.
@@ -148,17 +167,17 @@ Item {
         command: ["python3", svc.pluginApi ? svc.pluginApi.pluginDir + "/bin/upscale_walls.py" : "", "status"]
         stdout: StdioCollector { id: progressOut }
         onExited: function(code) {
-            if (!svc.busy) return;
             try {
-                const r = JSON.parse(progressOut.text);
-                if (r.state === "working") svc.apply(r);
+                svc.syncShared(JSON.parse(progressOut.text));
             } catch (e) {}
         }
     }
 
+    // Every monitor's bar loads its own copy of this service, and only one copy
+    // starts a given upscale. Each copy therefore reads the shared status file.
     Timer {
-        interval: 1000
-        running: svc.busy && svc.pluginApi
+        interval: 1200
+        running: !!svc.pluginApi
         repeat: true
         onTriggered: {
             svc.nowMs = Date.now();

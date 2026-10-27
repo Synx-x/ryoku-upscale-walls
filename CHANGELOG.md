@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Fix: the orb now shows on every monitor's bar during an upscale. Each bar runs its own copy of the service, and only the one that started the job knew it was working. All copies now read the shared status file.
+
 ## 0.2.0
 
 - The bar glyph is now an animated orb. It pulses with a progress ring and an orbiting spark while an upscale runs.
