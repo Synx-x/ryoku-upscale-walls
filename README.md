@@ -22,7 +22,9 @@ Real-ESRGAN also adds faint vertical streaks on smooth skies, visible at the rig
 4. The result lands in the plugin cache and is applied with `ryogami wallpaper set`.
 5. The same file with the same settings is served from the cache in about 0.1 s.
 
-The bar glyph shows the state. The panel shows the last result, with **Show original** and **Upscale again** buttons. Nothing changes the wallpaper until a pick or a click.
+The bar glyph appears only on demand. It shows while an upscale runs, then stays for a set time after the result so you can still see it. Place it next to the clock with `ryoku-shell bar move upscale-walls --section center`. A desktop notification marks the start and the end. The panel shows the last result, with **Show original** and **Upscale again** buttons.
+
+If you pick another wallpaper while one is processing, the finished copy is cached and marked ready but not applied, so it never replaces your newer pick.
 
 ## Upscalers
 
@@ -47,7 +49,7 @@ Without Real-ESRGAN the plugin falls back to waifu2x.
 
 | | |
 |---|---|
-| Runs | `python3`, `magick` (read image size, resize), `waifu2x-ncnn-vulkan`, `realesrgan-ncnn-vulkan`, `ryogami wallpaper set <path>` |
+| Runs | `python3`, `magick` (read image size, resize), `waifu2x-ncnn-vulkan`, `realesrgan-ncnn-vulkan`, `notify-send`, `ryogami wallpaper set <path>` |
 | Reads | `~/.local/state/ryoku/stage-walls.json`, the wallpaper image |
 | Writes | `$XDG_STATE_HOME/ryoku/plugins/upscale-walls/` (status, handled marker, lock), `$XDG_CACHE_HOME/ryoku/plugins/upscale-walls/` (upscaled PNGs, pruned to the cache limit) |
 | Network | None |
@@ -64,4 +66,4 @@ Every external call uses an argv list, with no shell string.
 
 ## Settings
 
-Under QS Bar Settings > Community: enable, upscaler, skip width, cache limit, GPU index.
+Under QS Bar Settings > Community: enable, upscaler, skip width, glyph linger time, cache limit, GPU index.

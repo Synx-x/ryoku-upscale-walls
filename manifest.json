@@ -1,7 +1,7 @@
 {
   "id": "upscale-walls",
   "name": "Upscale Walls",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "author": "Synx-x <Synx-x@users.noreply.github.com>",
   "description": "Upscale small wallpapers on the GPU as you pick them, and keep the original untouched.",
   "license": "MIT",
@@ -29,7 +29,7 @@
     "label": "Upscale Walls"
   },
   "dependencies": {
-    "commands": ["python3", "magick", "ryogami", "waifu2x-ncnn-vulkan", "realesrgan-ncnn-vulkan"]
+    "commands": ["python3", "magick", "ryogami", "waifu2x-ncnn-vulkan", "realesrgan-ncnn-vulkan", "notify-send"]
   },
   "metadata": {
     "settings": [
@@ -60,6 +60,15 @@
         "default": 3840,
         "min": 1920,
         "max": 7680
+      },
+      {
+        "key": "lingerSeconds",
+        "type": "int",
+        "label": "Keep the bar glyph after a result (seconds)",
+        "group": "Upscale Walls",
+        "default": 180,
+        "min": 10,
+        "max": 3600
       },
       {
         "key": "cacheMB",

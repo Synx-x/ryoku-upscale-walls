@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2
+
+- The bar glyph shows only on demand. It appears while an upscale runs and stays for a set time after the result.
+
+## 0.1.1
+
+- Fix: a finished upscale no longer replaces a wallpaper you picked while it was processing. It is cached and marked ready instead.
+- The bar glyph pulses and the panel names the file while an upscale runs.
+- A desktop notification announces the start, the result, a failure, or a result that was not applied.
+
 ## 0.1.0
 
 First release.

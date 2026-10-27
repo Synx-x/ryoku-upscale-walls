@@ -165,6 +165,31 @@ def record(status):
     return out(status)
 
 
+def write_status(status):
+    status["at"] = int(time.time())
+    write_json(STATUS_FILE, status)
+
+
+def notify(summary, body=""):
+    """One replaceable desktop notification, so the progress updates in place."""
+    id_file = os.path.join(STATE_DIR, "notify.id")
+    cmd = ["notify-send", "-a", "Upscale Walls", "-p", "-t", "6000"]
+    try:
+        with open(id_file) as f:
+            prev = f.read().strip()
+        if prev.isdigit():
+            cmd += ["-r", prev]
+    except OSError:
+        pass
+    try:
+        r = subprocess.run(cmd + [summary, body], capture_output=True, text=True, timeout=10)
+        if r.returncode == 0 and r.stdout.strip().isdigit():
+            with open(id_file, "w") as f:
+                f.write(r.stdout.strip())
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
 def apply_wallpaper(path):
     r = subprocess.run(["ryogami", "wallpaper", "set", path], capture_output=True, text=True, timeout=60)
     return r.returncode == 0, (r.stderr or r.stdout).strip()[-200:]
@@ -236,12 +261,15 @@ def tick(settings):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             return out({"state": "busy"})
+        write_status({"state": "working", "src": current, "engine": name})
+        notify("Upscaling wallpaper", "%s (%d px wide)" % (os.path.basename(current), width))
         ok, err = run_engine(name, binary, models, current, dst + ".part.png", scale, settings["gpu"])
         if not ok:
             try:
                 os.remove(dst + ".part.png")
             except OSError:
                 pass
+            notify("Upscale failed", os.path.basename(current))
             return record({"state": "error", "src": current, "engine": name, "message": err or "engine failed"})
         os.replace(dst + ".part.png", dst)
         up = image_size(dst)
@@ -250,10 +278,17 @@ def tick(settings):
                            capture_output=True, timeout=120)
         prune_cache(settings["cacheMB"])
 
+    final = image_size(dst) or (0, 0)
+    if read_json(WALL_STATE, {}).get("current") != current:
+        notify("Upscale ready, not applied", "%s finished after you picked another wallpaper" % os.path.basename(current))
+        return record({"state": "ready", "src": current, "out": dst, "engine": name, "cached": cached,
+                       "from": "%dx%d" % size, "to": "%dx%d" % final,
+                       "seconds": round(time.time() - began, 1),
+                       "message": "finished after you picked another wallpaper"})
     ok, err = apply_wallpaper(dst)
     if not ok:
         return record({"state": "error", "src": current, "out": dst, "message": err or "ryogami set failed"})
-    final = image_size(dst) or (0, 0)
+    notify("Wallpaper upscaled", "%s  %dx%d to %dx%d" % (os.path.basename(current), size[0], size[1], final[0], final[1]))
     return record({"state": "done", "src": current, "out": dst, "engine": name, "cached": cached,
                    "from": "%dx%d" % size, "to": "%dx%d" % final,
                    "seconds": round(time.time() - began, 1)})

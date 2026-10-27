@@ -49,7 +49,9 @@ Item {
                 if (!root.service) return "Starting";
                 if (!root.enabled) return "Off. Turn it on in QS Bar Settings > Community.";
                 switch (root.state) {
-                case "working": return "Upscaling the new wallpaper";
+                case "working": return "Upscaling " + root.fileName(root.service.src) + " with " + root.service.engine
+                                      + ". It applies when ready, unless you pick another wallpaper first.";
+                case "ready": return root.fileName(root.service.src) + " finished after you picked another wallpaper, so it was not applied. Pick it again to use the upscaled copy.";
                 case "done":
                     return root.fileName(root.service.src) + "\n" + root.service.fromSize + " to " + root.service.toSize
                          + " with " + root.service.engine + (root.service.cached ? " (cached)" : ", " + root.service.seconds + " s");

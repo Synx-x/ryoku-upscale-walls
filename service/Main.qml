@@ -22,7 +22,20 @@ Item {
     property real seconds: 0
     property bool cached: false
 
-    readonly property bool working: svc.busy && svc.state === "working"
+    readonly property bool working: svc.state === "working"
+
+    // The glyph shows only on demand: while working, then for a while after a
+    // result so it is still there when you look up.
+    property bool recent: false
+    readonly property bool showGlyph: svc.working
+        || (svc.recent && (svc.state === "done" || svc.state === "ready" || svc.state === "error" || svc.state === "reverted"))
+    readonly property int lingerSeconds: Math.max(10, Math.min(3600, (svc.settings && svc.settings.lingerSeconds) ? svc.settings.lingerSeconds : 180))
+
+    Timer {
+        id: linger
+        interval: svc.lingerSeconds * 1000
+        onTriggered: svc.recent = false
+    }
 
     function settingsJson() {
         const s = svc.settings || {};
@@ -63,6 +76,13 @@ Item {
         svc.toSize = result.to || "";
         svc.seconds = result.seconds || 0;
         svc.cached = !!result.cached;
+        if (svc.state === "working") {
+            svc.recent = false;
+            linger.stop();
+        } else if (svc.state === "done" || svc.state === "ready" || svc.state === "error" || svc.state === "reverted") {
+            svc.recent = true;
+            linger.restart();
+        }
     }
 
     Process {
@@ -78,6 +98,28 @@ Item {
                 svc.message = (errors.text || "worker failed").trim().slice(-120);
             }
         }
+    }
+
+    // A tick can block for the whole upscale, so a second light process reads
+    // the worker's progress file once a second while one is running.
+    Process {
+        id: progress
+        command: ["python3", svc.pluginApi ? svc.pluginApi.pluginDir + "/bin/upscale_walls.py" : "", "status"]
+        stdout: StdioCollector { id: progressOut }
+        onExited: function(code) {
+            if (!svc.busy) return;
+            try {
+                const r = JSON.parse(progressOut.text);
+                if (r.state === "working") svc.apply(r);
+            } catch (e) {}
+        }
+    }
+
+    Timer {
+        interval: 1000
+        running: svc.busy && svc.pluginApi
+        repeat: true
+        onTriggered: if (!progress.running) progress.running = true
     }
 
     Timer {
