@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.5
+
+- Fix: the orb and card no longer flicker to "Waiting for the next wallpaper pick" during an upscale. A bare idle result from a second bar's service no longer clears the working state.
+- Fix: the worker refreshes its status every second, so a slow last tile or the final resize cannot make the job look stale.
+
 ## 0.2.4
 
 - Fix: the orb now pulses from 95 percent, and during the final resize. The engine often stalls at about 97 percent while its last tile runs, so a 99 percent rule never fired.

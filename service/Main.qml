@@ -102,12 +102,10 @@ Item {
     function apply(result) {
         if (result.state === "busy") return;
         svc.setPair(result.pair);
-        // A tick with nothing to do returns a bare idle result. Keep the last
-        // real result on screen instead of blanking it.
-        if (result.state === "idle" && !result.src) {
-            if (svc.state === "working") svc.state = "idle";
-            return;
-        }
+        // A tick with nothing to do returns a bare idle result. Ignore it: the
+        // other copy of this service may be running the job, and syncShared
+        // owns every move into or out of the working state.
+        if (result.state === "idle" && !result.src) return;
         svc.state = result.state || "idle";
         svc.message = result.message || "";
         svc.engine = result.engine || "";

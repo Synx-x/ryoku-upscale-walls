@@ -348,12 +348,21 @@ def tick(settings):
                 "from": "%dx%d" % size, "target": target, "progress": 0.0, "thumb": thumb(current)}
         write_status(dict(base))
         notify("Upscaling wallpaper", "%s (%d px wide)" % (os.path.basename(current), width))
-        last = [0.0]
+        beat = {"cur": dict(base), "stop": False}
+
+        def heartbeat():
+            """Refresh the status once a second, so a slow last tile never reads as stale."""
+            while not beat["stop"]:
+                time.sleep(1.0)
+                if not beat["stop"]:
+                    write_status(dict(beat["cur"]))
+
+        threading.Thread(target=heartbeat, daemon=True).start()
 
         def on_progress(p):
-            if p - last[0] >= 0.01 or p >= 0.999:
-                last[0] = p
-                write_status(dict(base, progress=round(p, 3)))
+            if p - beat["cur"]["progress"] >= 0.01 or p >= 0.999:
+                beat["cur"]["progress"] = round(p, 3)
+                write_status(dict(beat["cur"]))
 
         ok, err = run_engine(name, binary, models, current, dst + ".part.png", scale, settings["gpu"], on_progress)
         if not ok:
@@ -361,15 +370,18 @@ def tick(settings):
                 os.remove(dst + ".part.png")
             except OSError:
                 pass
+            beat["stop"] = True
             notify("Upscale failed", os.path.basename(current))
             return record({"state": "error", "src": current, "engine": name, "message": err or "engine failed"})
-        write_status(dict(base, progress=1.0, phase="finishing"))
+        beat["cur"].update(progress=1.0, phase="finishing")
+        write_status(dict(beat["cur"]))
         os.replace(dst + ".part.png", dst)
         up = image_size(dst)
         if up and up[0] > target * 1.05:
             subprocess.run(["magick", dst, "-filter", "Lanczos", "-resize", "%dx" % target, dst],
                            capture_output=True, timeout=120)
         prune_cache(settings["cacheMB"])
+        beat["stop"] = True
 
     final = image_size(dst) or (0, 0)
     remember_pair(current, dst, name, "%dx%d" % size, "%dx%d" % final)
