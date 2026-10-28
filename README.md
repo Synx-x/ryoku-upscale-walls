@@ -30,6 +30,19 @@ Place the orb next to the clock with `ryoku-shell bar move upscale-walls --secti
 
 ### Orb states
 
+<table>
+  <tr>
+    <td align="center"><img src="assets/orb-sweep.gif" width="260" alt="Working: a spark orbits the core while the ring fills"></td>
+    <td align="center"><img src="assets/orb-pulse.gif" width="260" alt="Nearly done: the halo and core pulse"></td>
+    <td align="center"><img src="assets/orb-flip.gif" width="260" alt="Flip: the core fills or hollows as the wallpaper changes"></td>
+  </tr>
+  <tr>
+    <td align="center">Working, the ring fills</td>
+    <td align="center">Nearly done, it pulses</td>
+    <td align="center">Click to flip</td>
+  </tr>
+</table>
+
 ![The bar orb in each state, captured from the live bar](assets/orb-states.png)
 
 | State | Orb | Meaning |
