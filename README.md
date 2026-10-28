@@ -28,6 +28,20 @@ Once the upscale finishes, the orb stays for as long as the current wallpaper ha
 
 Place the orb next to the clock with `ryoku-shell bar move upscale-walls --section center`.
 
+### Orb states
+
+![The bar orb in each state, captured from the live bar](assets/orb-states.png)
+
+| State | Orb | Meaning |
+| --- | --- | --- |
+| Working | Spark orbits the core, ring fills with progress | An upscale is running. The card shows the source preview and the time left. |
+| Nearly done | Halo and core pulse | Past 95 percent. The last tile and the final resize can take several seconds. |
+| Upscaled | Filled core | The upscaled copy is the current wallpaper. Click to show the original. |
+| Original | Hollow ring | The original is the current wallpaper. Click to show the upscaled copy. |
+| Failed | Red dot and the word "failed" | The upscaler errored. It clears after 30 seconds, or hover and choose Upscale again. |
+
+When the current wallpaper has no upscaled counterpart, the orb is not shown.
+
 If you pick another wallpaper while one is processing, the finished copy is cached and marked ready but not applied, so it never replaces your newer pick.
 
 ## Upscalers
